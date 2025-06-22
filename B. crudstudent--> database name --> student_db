@@ -1,6 +1,9 @@
-//mysql
+//sql
+CREATE DATABASE IF NOT EXISTS student_db;
 
-CREATE TABLE student_db.students (
+USE student_db;
+
+CREATE TABLE IF NOT EXISTS students (
     roll_no INT NOT NULL,
     name VARCHAR(100) NOT NULL,
     marks INT NOT NULL,
@@ -8,8 +11,8 @@ CREATE TABLE student_db.students (
 ) ENGINE = InnoDB;
 
 
-
 //connect.php
+
 <?php
 $servername = "localhost";
 $username = "root";
@@ -23,8 +26,7 @@ if (!$conn) {
 ?>
 
 
-
-// create.php
+//create.php
 <?php
 include 'connect.php';
 
@@ -33,12 +35,20 @@ if (isset($_POST['submit'])) {
     $name = $_POST['name'];
     $marks = $_POST['marks'];
 
-    $sql = "INSERT INTO students (roll_no, name, marks) VALUES ('$roll_no', '$name', '$marks')";
-    if (mysqli_query($conn, $sql)) {
-        header("Location: display.php?msg=insert&highlight=$roll_no");
-        exit;
+    $sql = "INSERT INTO students (roll_no, name, marks) VALUES (?, ?, ?)";
+    $stmt = mysqli_prepare($conn, $sql);
+
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "isi", $roll_no, $name, $marks);
+        if (mysqli_stmt_execute($stmt)) {
+            header("Location: display.php?msg=insert&highlight=$roll_no");
+            exit;
+        } else {
+            echo "Insert error: " . mysqli_stmt_error($stmt);
+        }
+        mysqli_stmt_close($stmt);
     } else {
-        echo "Insert error: " . mysqli_error($conn);
+        echo "Prepare statement error: " . mysqli_error($conn);
     }
 }
 ?>
@@ -46,24 +56,42 @@ if (isset($_POST['submit'])) {
 
 
 //delete.php
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Delete Student</title>
-</head>
-<body>
-    <h3>Delete Student</h3>
-    <form method="POST">
-        Roll No: <input type="number" name="roll_no" required><br>
-        <input type="submit" name="submit" value="Delete">
-    </form>
-    <br><a href="display.php">Back to records</a>
-</body>
-</html>
+
+<?php
+include 'connect.php';
+
+if (isset($_POST['submit'])) {
+    $roll_no = $_POST['roll_no'];
+
+    $sql = "DELETE FROM students WHERE roll_no = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "i", $roll_no);
+        if (mysqli_stmt_execute($stmt)) {
+            if (mysqli_stmt_affected_rows($stmt) > 0) {
+                header("Location: display.php?msg=delete");
+                exit;
+            } else {
+                header("Location: display.php?msg=notfound");
+                exit;
+            }
+        } else {
+            echo "Delete error: " . mysqli_stmt_error($stmt);
+        }
+        mysqli_stmt_close($stmt);
+    } else {
+        echo "Prepare statement error: " . mysqli_error($conn);
+    }
+} else {
+    header("Location: display.php");
+    exit;
+}
+?>
 
 
+//update.php
 
-// update.php
 <?php
 include 'connect.php';
 
@@ -72,16 +100,23 @@ if (isset($_POST['submit'])) {
     $name = $_POST['name'];
     $marks = $_POST['marks'];
 
-    $sql = "UPDATE students SET name='$name', marks='$marks' WHERE roll_no='$roll_no'";
-    if (mysqli_query($conn, $sql)) {
-        header("Location: display.php?msg=update&highlight=$roll_no");
-        exit;
+    $sql = "UPDATE students SET name=?, marks=? WHERE roll_no=?";
+    $stmt = mysqli_prepare($conn, $sql);
+
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "sii", $name, $marks, $roll_no);
+        if (mysqli_stmt_execute($stmt)) {
+            header("Location: display.php?msg=update&highlight=$roll_no");
+            exit;
+        } else {
+            echo "Update error: " . mysqli_stmt_error($stmt);
+        }
+        mysqli_stmt_close($stmt);
     } else {
-        echo "Update error: " . mysqli_error($conn);
+        echo "Prepare statement error: " . mysqli_error($conn);
     }
 }
 ?>
-
 
 
 //display.php
@@ -95,6 +130,7 @@ if (isset($_GET['msg'])) {
     if ($_GET['msg'] == 'insert') $message = "Data has been <b>inserted</b>.";
     elseif ($_GET['msg'] == 'update') $message = "Data has been <b>updated</b>.";
     elseif ($_GET['msg'] == 'delete') $message = "Data has been <b>deleted</b>.";
+    elseif ($_GET['msg'] == 'notfound') $message = "<span style='color: red;'>Roll No not found for deletion.</span>";
 }
 ?>
 
@@ -141,13 +177,32 @@ if (isset($_GET['msg'])) {
             width: 100%;
             padding: 6px;
             margin: 6px 0;
+            box-sizing: border-box;
         }
         input[type="submit"] {
             padding: 8px 15px;
+            cursor: pointer;
         }
-        p {
+        .success-message {
             color: green;
             font-weight: bold;
+        }
+        .error-message {
+            color: red;
+            font-weight: bold;
+        }
+
+        /* CSS to hide the up/down arrows for number inputs */
+        /* For Webkit browsers (Chrome, Safari, Edge) */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* For Firefox */
+        input[type="number"] {
+            -moz-appearance: textfield;
         }
     </style>
 </head>
@@ -155,8 +210,8 @@ if (isset($_GET['msg'])) {
 
     <h1>Student Database Management</h1>
 
-    <p>Connection successful!</p>
-    <?php if (!empty($message)) echo "<p>$message</p>"; ?>
+    <p class="success-message">Connection successful!</p>
+    <?php if (!empty($message)) echo "<p class='success-message'>$message</p>"; ?>
 
     <?php
     $sql = "SELECT * FROM students";
@@ -164,14 +219,14 @@ if (isset($_GET['msg'])) {
 
     if (mysqli_num_rows($result) > 0) {
         echo "<table>
-                <tr><th>Roll No</th><th>Name</th><th>Marks</th></tr>";
+                    <tr><th>Roll No</th><th>Name</th><th>Marks</th></tr>";
         while ($row = mysqli_fetch_assoc($result)) {
             $highlight = ($row['roll_no'] == $highlighted_roll) ? " style='background-color: #e0ffe0;'" : "";
             echo "<tr$highlight>
-                    <td>{$row['roll_no']}</td>
-                    <td>{$row['name']}</td>
-                    <td>{$row['marks']}</td>
-                  </tr>";
+                        <td>{$row['roll_no']}</td>
+                        <td>{$row['name']}</td>
+                        <td>{$row['marks']}</td>
+                    </tr>";
         }
         echo "</table>";
     } else {
@@ -180,7 +235,6 @@ if (isset($_GET['msg'])) {
     ?>
 
     <div class="form-row">
-        <!-- Insert -->
         <div class="form-box">
             <h3>Insert Student</h3>
             <form method="POST" action="create.php">
@@ -191,20 +245,18 @@ if (isset($_GET['msg'])) {
             </form>
         </div>
 
-        <!-- Delete -->
         <div class="form-box">
             <h3>Delete Student</h3>
             <form method="POST" action="delete.php">
-                <input type="number" name="roll_no" placeholder="Roll No" required><br>
+                <input type="number" name="roll_no" placeholder="Roll No to Delete" required><br>
                 <input type="submit" name="submit" value="Delete">
             </form>
         </div>
 
-        <!-- Update -->
         <div class="form-box">
             <h3>Update Student</h3>
             <form method="POST" action="update.php">
-                <input type="number" name="roll_no" placeholder="Roll No" required><br>
+                <input type="number" name="roll_no" placeholder="Roll No to Update" required><br>
                 <input type="text" name="name" placeholder="New Name" required><br>
                 <input type="number" name="marks" placeholder="New Marks" required><br>
                 <input type="submit" name="submit" value="Update">
