@@ -1,5 +1,11 @@
 //mysql
-CREATE TABLE `studentdb`.`students` (`roll_no` INT NOT NULL , `name` VARCHAR(100) NOT NULL , `marks` INT NOT NULL , PRIMARY KEY (`roll_no`)) ENGINE = InnoDB;
+
+CREATE TABLE student_db.students (
+    roll_no INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    marks INT NOT NULL,
+    PRIMARY KEY (roll_no)
+) ENGINE = InnoDB;
 
 
 
