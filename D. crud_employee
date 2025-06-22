@@ -1,0 +1,220 @@
+// sql
+CREATE DATABASE IF NOT EXISTS employee_db;
+
+USE employee_db;
+
+CREATE TABLE IF NOT EXISTS employees (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    phone VARCHAR(15) NOT NULL,
+    salary DECIMAL(10,2) NOT NULL
+);
+
+
+
+
+//connect.php
+
+<?php
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "employee_db";
+
+$conn = mysqli_connect($servername, $username, $password, $dbname);
+if (!$conn) {
+    die("Connection failed: " . mysqli_connect_error());
+}
+?>
+
+
+
+
+//create.php
+
+<?php
+include 'connect.php';
+
+if (isset($_POST['submit'])) {
+    $name = $_POST['name'];
+    $phone = $_POST['phone'];
+    $salary = $_POST['salary'];
+
+    $sql = "INSERT INTO employees (name, phone, salary) VALUES ('$name', '$phone', '$salary')";
+    if (mysqli_query($conn, $sql)) {
+        header("Location: display.php?msg=insert");
+    } else {
+        echo "Insert error: " . mysqli_error($conn);
+    }
+}
+?>
+
+
+
+
+
+//update.php
+
+<?php
+include 'connect.php';
+
+if (isset($_POST['submit'])) {
+    $id = $_POST['id'];
+    $name = $_POST['name'];
+    $phone = $_POST['phone'];
+    $salary = $_POST['salary'];
+
+    $sql = "UPDATE employees SET name='$name', phone='$phone', salary='$salary' WHERE id='$id'";
+    if (mysqli_query($conn, $sql)) {
+        header("Location: display.php?msg=update");
+    } else {
+        echo "Update error: " . mysqli_error($conn);
+    }
+}
+?>
+
+
+
+
+
+//delete.php
+
+<?php
+include 'connect.php';
+
+if (isset($_POST['submit'])) {
+    $id = $_POST['id'];
+
+    $sql = "DELETE FROM employees WHERE id='$id'";
+    if (mysqli_query($conn, $sql)) {
+        header("Location: display.php?msg=delete");
+    } else {
+        echo "Delete error: " . mysqli_error($conn);
+    }
+}
+?>
+
+
+
+
+//display.php
+
+<?php
+include 'connect.php';
+
+$msg = "";
+if (isset($_GET['msg'])) {
+    if ($_GET['msg'] == "insert") $msg = "Employee record inserted successfully.";
+    elseif ($_GET['msg'] == "update") $msg = "Employee record updated successfully.";
+    elseif ($_GET['msg'] == "delete") $msg = "Employee record deleted successfully.";
+}
+
+$sql = "SELECT * FROM employees";
+$result = mysqli_query($conn, $sql);
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Employee Records</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            text-align: center;
+        }
+        table {
+            width: 70%;
+            margin: 0 auto 30px;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #888;
+        }
+        .form-row {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+        }
+        .form-box {
+            border: 1px solid #ccc;
+            padding: 20px;
+            width: 300px;
+            background: #f9f9f9;
+        }
+        input[type="text"],
+        input[type="number"] {
+            width: 90%;
+            padding: 6px;
+            margin: 8px 0;
+        }
+        input[type="submit"] {
+            padding: 8px 14px;
+            margin: 8px 0;
+        }
+        p {
+            font-weight: bold;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Employee Management System</h2>
+
+    <?php if ($msg != "") echo "<p>$msg</p>"; ?>
+
+    <?php
+    if (mysqli_num_rows($result) > 0) {
+        echo "<table>
+                <tr><th>ID</th><th>Name</th><th>Phone</th><th>Salary</th></tr>";
+        while ($row = mysqli_fetch_assoc($result)) {
+            echo "<tr>
+                    <td>{$row['id']}</td>
+                    <td>{$row['name']}</td>
+                    <td>{$row['phone']}</td>
+                    <td>{$row['salary']}</td>
+                  </tr>";
+        }
+        echo "</table>";
+    } else {
+        echo "<p>No employee records found.</p>";
+    }
+    ?>
+
+    <div class="form-row">
+        <!-- Insert -->
+        <div class="form-box">
+            <h3>Insert</h3>
+            <form action="create.php" method="POST">
+                <input type="text" name="name" placeholder="Name" required><br>
+                <input type="text" name="phone" placeholder="Phone Number" required><br>
+                <input type="number" name="salary" placeholder="Salary" required><br>
+                <input type="submit" name="submit" value="Insert">
+            </form>
+        </div>
+
+        <!-- Update -->
+        <div class="form-box">
+            <h3>Update</h3>
+            <form action="update.php" method="POST">
+                <input type="number" name="id" placeholder="Employee ID" required><br>
+                <input type="text" name="name" placeholder="New Name" required><br>
+                <input type="text" name="phone" placeholder="New Phone" required><br>
+                <input type="number" name="salary" placeholder="New Salary" required><br>
+                <input type="submit" name="submit" value="Update">
+            </form>
+        </div>
+
+        <!-- Delete -->
+        <div class="form-box">
+            <h3>Delete</h3>
+            <form action="delete.php" method="POST">
+                <input type="number" name="id" placeholder="Employee ID" required><br>
+                <input type="submit" name="submit" value="Delete">
+            </form>
+        </div>
+    </div>
+</body>
+</html>
